@@ -138,5 +138,10 @@ func New(key []byte) hash.Hash {
 // NewWithCipher returns a hash.Hash computing CMAC using the given
 // cipher.Block. The block cipher should have a block length of 8 or 16 bytes.
 func NewWithCipher(c cipher.Block) hash.Hash {
-	return newcmac(c)
+	switch c.BlockSize() {
+	case 8, 16:
+		return newcmac(c)
+	default:
+		panic("cmac: invalid blocksize")
+	}
 }
