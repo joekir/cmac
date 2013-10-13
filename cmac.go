@@ -1,4 +1,4 @@
-// Package cmac implements AES-CMAC (RFC4493)
+// Package cmac implements AES-CMAC (RFC4493/NIST SP800-38b)
 package cmac
 
 import (
