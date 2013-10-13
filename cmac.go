@@ -8,6 +8,11 @@ import (
 	"hash"
 )
 
+const (
+	_Rb128 = 0x87
+	_Rb64  = 0x1b
+)
+
 func shifted(x []byte) []byte {
 	d := make([]byte, len(x))
 	copy(d, x)
@@ -20,13 +25,6 @@ func shifted(x []byte) []byte {
 	return d
 }
 
-func padded(d []byte) []byte {
-	p := make([]byte, aes.BlockSize)
-	copy(p, d)
-	p[len(d)] = 0x80
-	return p
-}
-
 func gensubkey(c cipher.Block, l []byte, rb byte) []byte {
 	sk := shifted(l)
 	sk[len(sk)-1] ^= byte(subtle.ConstantTimeSelect(int(l[0]>>7), int(rb), 0))
@@ -34,10 +32,23 @@ func gensubkey(c cipher.Block, l []byte, rb byte) []byte {
 }
 
 func gensubkeys(c cipher.Block) ([]byte, []byte) {
+	var rb byte
+
+	switch c.BlockSize() {
+	case 16:
+		rb = _Rb128
+	case 8:
+		rb = _Rb64
+	default:
+		panic("cmac: invalid block size")
+
+	}
+
 	l := make([]byte, c.BlockSize())
 	c.Encrypt(l, l)
-	k1 := gensubkey(c, l, 0x87)
-	return k1, gensubkey(c, k1, 0x87)
+
+	k1 := gensubkey(c, l, rb)
+	return k1, gensubkey(c, k1, rb)
 }
 
 type cmac struct {
@@ -125,7 +136,7 @@ func New(key []byte) hash.Hash {
 }
 
 // NewWithCipher returns a hash.Hash computing CMAC using the given
-// cipher.Block. The block cipher should have a block length of 16 bytes.
+// cipher.Block. The block cipher should have a block length of 8 or 16 bytes.
 func NewWithCipher(c cipher.Block) hash.Hash {
 	return newcmac(c)
 }
