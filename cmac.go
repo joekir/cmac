@@ -120,5 +120,12 @@ func New(key []byte) hash.Hash {
 	if err != nil {
 		panic(err)
 	}
+
+	return NewWithCipher(c)
+}
+
+// NewWithCipher returns a hash.Hash computing CMAC using the given
+// cipher.Block. The block cipher should have a block length of 16 bytes.
+func NewWithCipher(c cipher.Block) hash.Hash {
 	return newcmac(c)
 }
