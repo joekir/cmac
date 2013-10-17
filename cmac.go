@@ -5,6 +5,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/subtle"
+	"errors"
 	"hash"
 )
 
@@ -126,10 +127,10 @@ func (m *cmac) BlockSize() int {
 }
 
 // New returns a hash.Hash computing AES-CMAC.
-func New(key []byte) hash.Hash {
+func New(key []byte) (hash.Hash, error) {
 	c, err := aes.NewCipher(key)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	return NewWithCipher(c)
@@ -137,11 +138,11 @@ func New(key []byte) hash.Hash {
 
 // NewWithCipher returns a hash.Hash computing CMAC using the given
 // cipher.Block. The block cipher should have a block length of 8 or 16 bytes.
-func NewWithCipher(c cipher.Block) hash.Hash {
+func NewWithCipher(c cipher.Block) (hash.Hash, error) {
 	switch c.BlockSize() {
 	case 8, 16:
-		return newcmac(c)
+		return newcmac(c), nil
 	default:
-		panic("cmac: invalid blocksize")
+		return nil, errors.New("cmac: invalid blocksize")
 	}
 }
