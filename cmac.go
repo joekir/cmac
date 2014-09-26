@@ -1,4 +1,4 @@
-// Package cmac implements CMAC as defined in  RFC4493 an NIST SP800-38b.
+// Package cmac implements CMAC as defined in RFC4493 and NIST SP800-38b.
 package cmac
 
 import (
