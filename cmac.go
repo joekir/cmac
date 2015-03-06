@@ -60,8 +60,9 @@ type cmac struct {
 
 func newcmac(c cipher.Block) *cmac {
 	k1, k2 := gensubkeys(c)
+	x := make([]byte, c.BlockSize())
 	tmp := make([]byte, c.BlockSize())
-	m := &cmac{c: c, k1: k1, k2: k2, tmp: tmp}
+	m := &cmac{c: c, k1: k1, k2: k2, x: x, tmp: tmp}
 	m.Reset()
 	return m
 }
@@ -111,7 +112,9 @@ func (m *cmac) Sum(b []byte) []byte {
 
 func (m *cmac) Reset() {
 	m.buf = nil
-	m.x = make([]byte, m.c.BlockSize())
+	for i := range m.x {
+		m.x[i] = 0
+	}
 }
 
 func (m *cmac) Size() int {
