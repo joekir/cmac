@@ -53,28 +53,24 @@ func gensubkeys(c cipher.Block) ([]byte, []byte) {
 }
 
 type cmac struct {
-	c  cipher.Block
-	k1 []byte
-	k2 []byte
-
-	x []byte
-
-	buf []byte
+	c           cipher.Block
+	k1, k2      []byte
+	buf, x, tmp []byte
 }
 
 func newcmac(c cipher.Block) *cmac {
 	k1, k2 := gensubkeys(c)
-	m := &cmac{c: c, k1: k1, k2: k2}
+	tmp := make([]byte, c.BlockSize())
+	m := &cmac{c: c, k1: k1, k2: k2, tmp: tmp}
 	m.Reset()
 	return m
 }
 
 func (m *cmac) block(b []byte) {
-	y := make([]byte, m.c.BlockSize())
-	for i := range y {
-		y[i] = m.x[i] ^ b[i]
+	for i := range m.tmp {
+		m.tmp[i] = m.x[i] ^ b[i]
 	}
-	m.c.Encrypt(m.x, y)
+	m.c.Encrypt(m.x, m.tmp)
 }
 
 func (m *cmac) Write(b []byte) (int, error) {
