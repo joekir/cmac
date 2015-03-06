@@ -87,26 +87,26 @@ func (m *cmac) Write(b []byte) (int, error) {
 }
 
 func (m *cmac) Sum(b []byte) []byte {
-	last := make([]byte, m.c.BlockSize())
-
-	if len(m.buf) > 0 && len(m.buf)%m.c.BlockSize() == 0 {
-		for i := range last {
-			last[i] = m.buf[i] ^ m.k1[i]
+	if len(m.buf) == m.c.BlockSize() {
+		for i := range m.tmp {
+			m.tmp[i] = m.buf[i] ^ m.k1[i]
 		}
 	} else {
-		copy(last, m.buf)
-		last[len(m.buf)] = 0x80
-		for i := range last {
-			last[i] ^= m.k2[i]
+		for i := range m.buf {
+			m.tmp[i] = m.buf[i] ^ m.k2[i]
+		}
+		m.tmp[len(m.buf)] = 0x80 ^ m.k2[len(m.buf)]
+		for i := len(m.buf) + 1; i < len(m.tmp); i++ {
+			m.tmp[i] = m.k2[i]
 		}
 	}
 
-	for i := range last {
-		last[i] ^= m.x[i]
+	for i := range m.tmp {
+		m.tmp[i] ^= m.x[i]
 	}
-	m.c.Encrypt(last, last)
+	m.c.Encrypt(m.tmp, m.tmp)
 
-	return append(b, last...)
+	return append(b, m.tmp...)
 }
 
 func (m *cmac) Reset() {
