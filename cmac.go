@@ -53,68 +53,86 @@ func gensubkeys(c cipher.Block) ([]byte, []byte) {
 }
 
 type cmac struct {
-	c           cipher.Block
-	k1, k2      []byte
-	buf, x, tmp []byte
+	c       cipher.Block
+	k1, k2  []byte
+	buf, x  []byte
+	scratch []byte
+	cursor  int
 }
 
 func newcmac(c cipher.Block) *cmac {
 	k1, k2 := gensubkeys(c)
+	buf := make([]byte, c.BlockSize())
 	x := make([]byte, c.BlockSize())
-	tmp := make([]byte, c.BlockSize())
-	m := &cmac{c: c, k1: k1, k2: k2, x: x, tmp: tmp}
+	m := &cmac{c: c, k1: k1, k2: k2, buf: buf, x: x}
 	m.Reset()
 	return m
 }
 
-func (m *cmac) block(b []byte) {
-	for i := range m.tmp {
-		m.tmp[i] = m.x[i] ^ b[i]
-	}
-	m.c.Encrypt(m.x, m.tmp)
-}
-
 func (m *cmac) Write(b []byte) (int, error) {
-	d := append(m.buf, b...)
+	totLen := len(b)
 
-	for len(d) > m.c.BlockSize() {
-		m.block(d[:m.c.BlockSize()])
-		d = d[m.c.BlockSize():]
+	n := copy(m.buf[m.cursor:], b)
+	m.cursor += n
+	b = b[n:]
+
+	for len(b) > 0 {
+		for i := range m.buf {
+			m.buf[i] ^= m.x[i]
+		}
+		m.c.Encrypt(m.x, m.buf)
+
+		m.cursor = copy(m.buf, b)
+		b = b[m.cursor:]
 	}
 
-	m.buf = d
-
-	return len(b), nil
+	return totLen, nil
 }
 
 func (m *cmac) Sum(b []byte) []byte {
-	if len(m.buf) == m.c.BlockSize() {
-		for i := range m.tmp {
-			m.tmp[i] = m.buf[i] ^ m.k1[i]
+	n := len(b)
+	// I'm not sure why we need to do this: the second argument of
+	// 	append(b, make([]byte, m.c.BlockSize())...)
+	// shouldn't escape, so I'm not sure why it ends up getting heap
+	// allocated (as of Go 1.4.2 at least).
+	switch m.c.BlockSize() {
+	case 8:
+		b = append(b, 0, 0, 0, 0, 0, 0, 0, 0)
+	case 16:
+		b = append(b, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	default:
+		panic("unexpected block size")
+	}
+	scratch := b[n:]
+
+	if m.cursor == m.c.BlockSize() {
+		for i := range scratch {
+			scratch[i] = m.buf[i] ^ m.k1[i]
 		}
 	} else {
-		for i := range m.buf {
-			m.tmp[i] = m.buf[i] ^ m.k2[i]
+		for i := 0; i < m.cursor; i++ {
+			scratch[i] = m.buf[i] ^ m.k2[i]
 		}
-		m.tmp[len(m.buf)] = 0x80 ^ m.k2[len(m.buf)]
-		for i := len(m.buf) + 1; i < len(m.tmp); i++ {
-			m.tmp[i] = m.k2[i]
+		scratch[m.cursor] = 0x80 ^ m.k2[m.cursor]
+		for i := m.cursor + 1; i < len(m.buf); i++ {
+			scratch[i] = m.k2[i]
 		}
 	}
 
-	for i := range m.tmp {
-		m.tmp[i] ^= m.x[i]
+	for i := range scratch {
+		scratch[i] ^= m.x[i]
 	}
-	m.c.Encrypt(m.tmp, m.tmp)
+	m.c.Encrypt(scratch, scratch)
 
-	return append(b, m.tmp...)
+	return b
 }
 
 func (m *cmac) Reset() {
-	m.buf = nil
-	for i := range m.x {
+	for i := 0; i < m.c.BlockSize(); i++ {
+		m.buf[i] = 0
 		m.x[i] = 0
 	}
+	m.cursor = 0
 }
 
 func (m *cmac) Size() int {
