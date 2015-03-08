@@ -61,13 +61,13 @@ func TestNewWithCipher(t *testing.T) {
 	}
 }
 
-func BenchmarkHash1024(b *testing.B) {
-	buf := make([]byte, 1024)
+func benchmarkHash(b *testing.B, size int64) {
+	buf := make([]byte, size)
 	h, _ := New(make([]byte, 128/8))
 	sum := make([]byte, 0, h.Size())
 
 	b.ReportAllocs()
-	b.SetBytes(1024)
+	b.SetBytes(size)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
@@ -76,3 +76,6 @@ func BenchmarkHash1024(b *testing.B) {
 		h.Sum(sum)
 	}
 }
+
+func BenchmarkHash1K(b *testing.B) { benchmarkHash(b, 1<<10) }
+func BenchmarkHash1M(b *testing.B) { benchmarkHash(b, 1<<20) }
