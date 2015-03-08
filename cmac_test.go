@@ -61,6 +61,33 @@ func TestNewWithCipher(t *testing.T) {
 	}
 }
 
+func TestChunkedWrites(t *testing.T) {
+	key := make([]byte, 16)
+	expected := []byte{0xe9, 0x0a, 0xe6, 0xf3, 0x44, 0x73, 0x47, 0xf6, 0x19, 0xcf, 0xf1, 0x6a, 0xb2, 0xa3, 0xd4, 0x9c}
+	total := 1 << 20
+
+	h, err := New(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	n := 0
+	for c := 0; n < total; c += 1 {
+		if n+c > total {
+			c = total - n
+		}
+
+		chunk := make([]byte, c)
+		h.Write(chunk)
+		n += len(chunk)
+	}
+	mac := h.Sum(nil)
+
+	if !bytes.Equal(mac, expected) {
+		t.Errorf("expected: %x got %x\n", expected, mac)
+	}
+}
+
 func benchmarkHash(b *testing.B, size int64) {
 	buf := make([]byte, size)
 	h, _ := New(make([]byte, 128/8))
