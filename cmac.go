@@ -56,7 +56,6 @@ type cmac struct {
 	c       cipher.Block
 	k1, k2  []byte
 	buf, x  []byte
-	scratch []byte
 	cursor  int
 }
 
