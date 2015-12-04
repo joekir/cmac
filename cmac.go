@@ -53,10 +53,10 @@ func gensubkeys(c cipher.Block) ([]byte, []byte) {
 }
 
 type cmac struct {
-	c       cipher.Block
-	k1, k2  []byte
-	buf, x  []byte
-	cursor  int
+	c      cipher.Block
+	k1, k2 []byte
+	buf, x []byte
+	cursor int
 }
 
 func newcmac(c cipher.Block) *cmac {
